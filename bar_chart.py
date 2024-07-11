@@ -6,6 +6,7 @@ import streamlit as st
 import altair as alt
 from tensorflow.keras.models import load_model
 import time
+import noisereduce as nr
 
 SAMPLE_RATE = 22050
 TRACK_DURATION = 30  # second
@@ -19,7 +20,7 @@ def extract_mfcc(file_path, num_mfcc=13, n_fft=2048, hop_length=512, num_segment
     num_mfcc_vectors_per_segment = math.ceil(samples_per_segment / hop_length)
 
     signal, sample_rate = librosa.load(file_path, sr=SAMPLE_RATE)
-    # signal = np.array(file_path)
+    # signal = nr.reduce_noise(y=signal, sr=sample_rate)
 
     for d in range(num_segments):
         # calculate start and finish sample for current segment
@@ -56,7 +57,7 @@ genres = {
 }
 genres_list = list(genres.keys())
 
-file_path = "../mfcc_genre_detection/datasets/classical/classical.00010.wav"
+file_path = "../mfcc_genre_detection/datasets/reggae/reggae.00010.wav"
 
 model = load_model("./model/cnn__genre_detection.h5")
 val = extract_mfcc(file_path=file_path)
