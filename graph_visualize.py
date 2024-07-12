@@ -20,7 +20,7 @@ import io
 import spotipy
 import streamlit as st
 from spotipy.oauth2 import SpotifyClientCredentials
-
+import math
 
 # Spotify Client
 client = spotipy.Spotify(
@@ -31,14 +31,93 @@ client = spotipy.Spotify(
     # redirect_uri="localhost:8501",
 )
 
-recording = np.zeros(0)
 
+
+
+# Song Searching
+def search_song(genre_select, artist, year):
+    result = {}
+    st.write('after ==>',genre_select)
+    keyword = f"genre={genre_select if (genre_select is not None) else ''}&artist={artist}&year={year[0]}-{year[1]}"
+    st.write(keyword)
+    # if genre_select is not None:
+    try:
+        result = client.search(q=keyword, type="track", limit=song_result)
+        print("result ==>", result)
+    except Exception as err:
+        print(err)
+    # elif emotion is not None:
+    #     result = client.search(q=emotion, type="track", limit=3)
+    # else:
+    # st.warning('Please select the genre first!')
+
+    # Get Tracks List
+    # st.json(result and result)
+    if result["tracks"]["items"]:
+        tracks = []
+        # st.json(result["tracks"]["items"])
+        for track in result["tracks"]["items"]:
+            tracks.append(
+                {
+                    "title": track["name"],
+                    "href": track["external_urls"]["spotify"],
+                    "artists": track["artists"],
+                    "picture": track["album"]["images"][1]["url"],
+                    "year": track["album"]["release_date"],
+                    "preview_url": track["preview_url"],
+                }
+            )
+        # st.json(tracks)
+
+        grid = math.ceil(len(tracks) / 2)
+        rows = [
+            st.columns(2, vertical_alignment="bottom", gap="large") for i in range(grid)
+        ]
+
+        idx = 0
+        for row in rows:
+            for col in row:
+                if idx >= len(tracks):
+                    break
+
+                with col:
+                    st.image(tracks[idx]["picture"], width=100)
+
+                    st.write(
+                        '<h4><a target="_blank" href="{}" style="text-decoration:none;color: tomato">{}</a></h4>'.format(
+                            tracks[idx]["href"], tracks[idx]["title"]
+                        ),
+                        unsafe_allow_html=True,
+                    )
+                    artists_name = []
+                    for artist in tracks[idx]["artists"]:
+                        artists_name.append(
+                            '<a target="_blank" href="{}" style="text-decoration:none;color:gold">{}</a>'.format(
+                                artist["external_urls"]["spotify"], artist["name"]
+                            )
+                        )
+                    st.write(
+                        " , ".join(artists_name),
+                        unsafe_allow_html=True,
+                    )
+
+                    st.write(
+                        f'<span style="color:lightSalmon">{tracks[idx]["year"][:4]}',
+                        unsafe_allow_html=True,
+                    )
+                    if tracks[idx]["preview_url"]:
+                        st.audio(tracks[idx]["preview_url"])
+                    else:
+                        st.warning("⚠️ Preview is not available")
+                idx += 1
+    else:
+        st.markdown("#### No song for recommendation ")
 
 # Define a callback function to collect audio data
+recording = np.zeros(0)
 def callback(indata, frames, time, status):
     global recording
     recording = np.append(recording, indata[:, 0])
-
 
 def recoding_audio():
 
@@ -200,12 +279,12 @@ def model_service(model_path):
         for idx, v in enumerate(prediction[i]):
             # print('val', genres['Reggae'])
             # genres[genres_list[idx]] = genres[genres_list[idx]] + v
-            genres[genres_list[idx]] = ((genres[genres_list[idx]] * 3 )+ v) / 4
+            genres[genres_list[idx]] = ((genres[genres_list[idx]] * 3) + v) / 4
             fig.add_rows(
                 [
                     {
                         "genres": genres_list[idx],
-                        "values": round(genres[genres_list[idx]]),
+                        "values": round(v * 100),
                     }
                 ]
             )
@@ -215,7 +294,9 @@ def model_result():
     st.write("<<========= Genre Detection Accuracy =======>>")
     # Sort the two lists together based on values in descending order
     global genres
+    st.write(genres)
     genre_values = list(genres.values())
+    st.write(math.fsum(genre_values))
     sorted_genres = sorted(
         zip(genres_list, genre_values), key=lambda x: x[1], reverse=True
     )
@@ -230,12 +311,24 @@ def model_result():
     val = 0
     for genre, value in sorted_genres[:3]:
         st.write("{}\t\t==> {}%".format(genre, round(value * 100, 2)))
-        val += int(value)
+        val += float(value)
 
-    st.write(f"Others : {round(1  - val  , 2) }%")
+    st.write(val)
+    st.write(f"Others : {round((1  - val) * 100 , 2) }%")
 
     st.write("Prediction finished. 👌")
 
+
+# emotion = st.selectbox(
+#     "Pick one the emotion you feel now",
+#     ["happy", "sad", "surprise", "love", "neutral", "angry", "fear"],
+# )
+artist = st.text_input("Artist name")
+year = st.slider("Song Release", 1980, 2024, [2009, 2017])
+st.write(f"{year[0]}-{year[1]}")
+# popularity = st.slider("Choose song popularity", 0, 100)
+# st.markdown("*100 is most populer*")
+song_result = st.slider("Song result", 3, 20)
 
 model_path = st.radio(
     "Select the model",
@@ -253,13 +346,17 @@ music_input_method = st.radio(
 )
 
 
+
+genre_select = None
+button_search = None
 if music_input_method == "Record music 🎙️":
-    duration = st.slider("Select recording duration (seconds)", 0, 30, 5, 5)
+    duration = st.slider("Select recording duration (seconds)", 0, 30, 30, 5)
     recording_btn = st.button("Start Recording ⏺️")
     if recording_btn:
         recoding_audio()
         model_service(model_path)
         model_result()
+
 else:
     uploaded_file = st.file_uploader("Upload Audio File", type=["wav", "mp3"])
     if uploaded_file is not None:
@@ -268,7 +365,25 @@ else:
         sf.write("scipy.wav", data, samplerate)
         model_service(model_path)
         model_result()
+        genre_select = st.selectbox(
+            "Music genre to search",
+            [
+                "blues",
+                "classical",
+                "country",
+                "disco",
+                "hip-hop",
+                "jazz",
+                "metal",
+                "pop",
+                "reggae",
+                "rock",
+            ],
+            index=genre_detection_result,
+        )
+        st.write('before ==>',genre_select)
 
+        button_search = st.button("Search Song")
 
 genre_select = st.selectbox(
     "Music genre to search",
@@ -286,64 +401,8 @@ genre_select = st.selectbox(
     ],
     index=genre_detection_result,
 )
+st.write('before ==>',genre_select)
 
-# emotion = st.selectbox(
-#     "Pick one the emotion you feel now",
-#     ["happy", "sad", "surprise", "love", "neutral", "angry", "fear"],
-# )
-
-artist = st.text_input("Artist name")
-year = st.slider("Song Release", 1980, 2024, [2009, 2017])
-st.write(f"{year[0]}-{year[1]}")
-# popularity = st.slider("Choose song popularity", 0, 100)
-# st.markdown("*100 is most populer*")
-song_result = st.slider("Song result", 3, 20)
-
-
-# Song Searching
-def search_song():
-    result = {}
-    keyword = (
-        f"year={year[0]}-{year[1]}&artist={artist}&genre={genre_select if genre_select else ''}"
-    )
-    st.write(keyword)
-    # if genre_select is not None:
-    try:
-        result = client.search(q=keyword, type="track", limit=song_result)
-        print("result ==>", result)
-    except Exception as err:
-        print(err)
-    # elif emotion is not None:
-    #     result = client.search(q=emotion, type="track", limit=3)
-    # else:
-    # st.warning('Please select the genre first!')
-
-    # Get Tracks List
-    # st.json(result and result)
-    if result["tracks"]["items"]:
-        tracks = []
-        st.json(result["tracks"]["items"])
-        for track in result["tracks"]["items"]:
-            tracks.append(
-                {
-                    "title": track["name"],
-                    "artist": track["artists"][0]["name"],
-                    "picture": track["album"]["images"][1]["url"],
-                    "year": track["album"]["release_date"],
-                    "preview_url": track["preview_url"],
-                }
-            )
-        # st.json(tracks)
-        for track in tracks:
-            st.image(track["picture"], width=100)
-            st.markdown(f"### {track['title']}")
-            st.markdown(f"{track['artist']} | {track['year'][0:4]}")
-            st.audio(track["preview_url"])
-    else:
-        st.markdown("#### No song for recommendation ")
-
-
-buttonSearch = st.button("Search Song")
-
-if buttonSearch:
-    search_song()
+button_search = st.button("Search Song")
+if button_search:
+    search_song(genre_select, artist, year)
