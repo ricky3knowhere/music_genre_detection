@@ -32,12 +32,10 @@ client = spotipy.Spotify(
 )
 
 
-
-
 # Song Searching
 def search_song(genre_select, artist, year):
     result = {}
-    st.write('after ==>',genre_select)
+    st.write("after ==>", genre_select)
     keyword = f"genre={genre_select if (genre_select is not None) else ''}&artist={artist}&year={year[0]}-{year[1]}"
     st.write(keyword)
     # if genre_select is not None:
@@ -69,55 +67,54 @@ def search_song(genre_select, artist, year):
             )
         # st.json(tracks)
 
-        grid = math.ceil(len(tracks) / 2)
         rows = [
-            st.columns(2, vertical_alignment="bottom", gap="large") for i in range(grid)
+            st.columns([2, 3], vertical_alignment="center") for i in range(len(tracks))
         ]
 
-        idx = 0
-        for row in rows:
-            for col in row:
-                if idx >= len(tracks):
-                    break
-
-                with col:
-                    st.image(tracks[idx]["picture"], width=100)
-
-                    st.write(
-                        '<h4><a target="_blank" href="{}" style="text-decoration:none;color: tomato">{}</a></h4>'.format(
-                            tracks[idx]["href"], tracks[idx]["title"]
-                        ),
-                        unsafe_allow_html=True,
-                    )
-                    artists_name = []
-                    for artist in tracks[idx]["artists"]:
-                        artists_name.append(
-                            '<a target="_blank" href="{}" style="text-decoration:none;color:gold">{}</a>'.format(
-                                artist["external_urls"]["spotify"], artist["name"]
-                            )
+        for idx, col in enumerate(rows):
+            with col[0]:
+                st.write(
+                    f'<img src="{tracks[idx]["picture"]}" width="120" style="margin-left:8em;border-radius:120px"/>',
+                    unsafe_allow_html=True,
+                )
+            with col[1]:
+                st.write(
+                    '<h5 style="margin-top:2em"><a target="_blank" href="{}" style="text-decoration:none;color: tomato">{}</a></h5>'.format(
+                        tracks[idx]["href"], tracks[idx]["title"]
+                    ),
+                    unsafe_allow_html=True,
+                )
+                artists_name = []
+                for artist in tracks[idx]["artists"]:
+                    artists_name.append(
+                        '<a target="_blank" href="{}" style="text-decoration:none;color:gold">{}</a>'.format(
+                            artist["external_urls"]["spotify"], artist["name"]
                         )
-                    st.write(
-                        " , ".join(artists_name),
-                        unsafe_allow_html=True,
                     )
+                st.write(
+                    f'{" , ".join(artists_name)}<span style="margin:0 0.3em"> | </span> <span style="color:lightSalmon">{tracks[idx]["year"][:4]}</span>',
+                    unsafe_allow_html=True,
+                )
 
-                    st.write(
-                        f'<span style="color:lightSalmon">{tracks[idx]["year"][:4]}',
-                        unsafe_allow_html=True,
-                    )
-                    if tracks[idx]["preview_url"]:
-                        st.audio(tracks[idx]["preview_url"])
-                    else:
-                        st.warning("⚠️ Preview is not available")
-                idx += 1
+                if tracks[idx]["preview_url"]:
+                    st.audio(tracks[idx]["preview_url"])
+                else:
+                    st.warning("⚠️ Preview is not available")
+            idx += 1
+            st.write("<hr/>", unsafe_allow_html=True)
+
     else:
         st.markdown("#### No song for recommendation ")
 
+
 # Define a callback function to collect audio data
 recording = np.zeros(0)
+
+
 def callback(indata, frames, time, status):
     global recording
     recording = np.append(recording, indata[:, 0])
+
 
 def recoding_audio():
 
@@ -346,7 +343,6 @@ music_input_method = st.radio(
 )
 
 
-
 genre_select = None
 button_search = None
 if music_input_method == "Record music 🎙️":
@@ -365,25 +361,6 @@ else:
         sf.write("scipy.wav", data, samplerate)
         model_service(model_path)
         model_result()
-        genre_select = st.selectbox(
-            "Music genre to search",
-            [
-                "blues",
-                "classical",
-                "country",
-                "disco",
-                "hip-hop",
-                "jazz",
-                "metal",
-                "pop",
-                "reggae",
-                "rock",
-            ],
-            index=genre_detection_result,
-        )
-        st.write('before ==>',genre_select)
-
-        button_search = st.button("Search Song")
 
 genre_select = st.selectbox(
     "Music genre to search",
@@ -401,7 +378,7 @@ genre_select = st.selectbox(
     ],
     index=genre_detection_result,
 )
-st.write('before ==>',genre_select)
+st.write("before ==>", genre_select)
 
 button_search = st.button("Search Song")
 if button_search:
