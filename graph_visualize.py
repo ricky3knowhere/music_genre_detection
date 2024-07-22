@@ -20,17 +20,19 @@ import io
 import spotipy
 import streamlit as st
 from spotipy.oauth2 import SpotifyClientCredentials
+from dotenv import load_dotenv
 import math
 
+
+load_dotenv()
 # Spotify Client
 client = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
-        client_id="1ed575a2d0954e1ba040771e1de31b12",
-        client_secret="df52f67f61734867925bc2cdf3089930",
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
     ),
     # redirect_uri="localhost:8501",
 )
-
 
 # Song Searching
 def search_song(genre_select, artist, year):
